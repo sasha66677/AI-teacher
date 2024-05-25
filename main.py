@@ -65,20 +65,40 @@ def download_file(drive_service, file_id):
     return file.getvalue() if file else None
 
 
-def download_folder(drive_service, folder_id, folder_name):
-    os.makedirs(folder_name, exist_ok=True)
+def download_folder(drive_service, folder_id, destination_folder):
+    os.makedirs(destination_folder, exist_ok=True)
     try:
         results = drive_service.files().list(q=f"'{folder_id}' in parents", fields="files(id, name, mimeType)").execute()
         items = results.get('files', [])
         for item in items:
             if item['mimeType'] == 'application/vnd.google-apps.folder':
-                download_folder(drive_service, item['id'], os.path.join(folder_name, item['name']))
+                download_folder(drive_service, item['id'], os.path.join(destination_folder, item['name']))
             else:
                 content = download_file(drive_service, item['id']) #, item['name'])
-                with open(os.path.join(folder_name, item['name']), 'wb') as f:
+                with open(os.path.join(destination_folder, item['name']), 'wb') as f:
                     f.write(content)
     except HttpError as error:
         print(f"An error occurred: {error}")
+
+
+def get_folder_id_by_name(drive_service, folder_name):
+    try:
+        results = drive_service.files().list(q=f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder'", fields="files(id)").execute()
+        items = results.get('files', [])
+        if items:
+            return items[0]['id']
+        else:
+            print(f'Folder with name "{folder_name}" not found.')
+            return None
+    except HttpError as error:
+        print(f'An error occurred: {error}')
+        return None
+
+
+def download_folder_by_name(drive_service, folder_name, destination_folder):
+    folder_id = get_folder_id_by_name(drive_service, folder_name)
+    if folder_id:
+        download_folder(drive_service, folder_id, destination_folder)
 
 
 def list_files(drive_service):
@@ -100,11 +120,4 @@ if __name__ == "__main__":
     drive_service = build("drive", "v3", credentials=creds)
     list_files(drive_service)
 
-    download_folder(drive_service, folder_id="1XPazB1Ygnf8ZTh-FoHKHV9H_qs8Cz5Av", folder_name="downloaded_folder")
-
-    #upload_file(drive_service)
-    
-    #downloaded_content = download_file(drive_service, file_id="1CUtcaEnkmdeH724tbAoPly_gq-ybEOqA")
-    #if downloaded_content:
-    #    with open("downloaded_document.txt", "wb") as f:
-    #        f.write(downloaded_content)
+    download_folder_by_name(drive_service, "Untitled folder", "downloaded_folder")

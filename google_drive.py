@@ -1,6 +1,7 @@
 import os.path
 import io
 import oauth2client.client
+import mimetypes
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -38,22 +39,55 @@ def authenticate():
     return creds
 
 
+def upload_file(drive_service, file_path, parent_folder_id=None):
+    mime_type = mimetypes.MimeTypes().guess_type(file_path)[0] or 'application/octet-stream'
+    file_name = os.path.basename(file_path)
+    media_body = MediaFileUpload(file_path, mimetype=mime_type, resumable=True)
 
-def upload_file(drive_service, file_name, mime_type, title, description):
-    media_body = MediaFileUpload(file_name, mimetype=mime_type, resumable=True)
     body = {
-        "name": title,
-        "description": description,
+        'name': file_name
     }
 
+    if parent_folder_id:
+        body['parents'] = [parent_folder_id]
+
     try:
-        new_file = drive_service.files().create(body=body, media_body=media_body).execute()
-        file_title = new_file.get("name")
-        file_desc = new_file.get("description")
-        if file_title == title and file_desc == description:
-            print(f"File is uploaded \nTitle : {file_title}  \nDescription : {file_desc}")
+        file = drive_service.files().create(body=body, media_body=media_body, fields='id').execute()
+        return file.get('id')
     except HttpError as error:
-        print(f"An error occurred: {error}")
+        raise f"An error occurred while uploading file '{file_name}': {error}"
+
+
+
+def create_folder(drive_service, folder_name, parent_folder_id=None):
+    file_metadata = {
+        'name': folder_name,
+        'mimeType': 'application/vnd.google-apps.folder'
+    }
+    if parent_folder_id:
+        file_metadata['parents'] = [parent_folder_id]
+    try:
+        folder = drive_service.files().create(body=file_metadata, fields='id').execute()
+        folder_id = folder.get('id')
+        return folder_id
+    except HttpError as error:
+        raise f"An error occurred while creating folder '{folder_name}': {error}"
+
+
+def upload_folder(drive_service, folder_path, parent_folder_id=None):
+    folder_name = os.path.basename(folder_path)
+
+    current_folder_id = create_folder(drive_service, folder_name, parent_folder_id)
+
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+
+        if os.path.isdir(item_path):
+            upload_folder(drive_service, item_path, current_folder_id)
+        elif os.path.isfile(item_path):
+            upload_file(drive_service, item_path, parent_folder_id=current_folder_id)
+
+
 
 
 def download_file(drive_service, file_id):

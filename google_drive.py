@@ -88,8 +88,6 @@ def upload_folder(drive_service, folder_path, parent_folder_id=None):
             upload_file(drive_service, item_path, parent_folder_id=current_folder_id)
 
 
-
-
 def download_file(drive_service, file_id):
     try:
         request = drive_service.files().get_media(fileId=file_id)
@@ -98,10 +96,8 @@ def download_file(drive_service, file_id):
         done = False
         while done is False:
             status, done = downloader.next_chunk()
-            print(f"Download {int(status.progress() * 100)}%.")
-    except HttpError as error:
-        print(f"An error occurred: {error}")
-        file = None
+    except HttpError as e:
+        raise e
     return file.getvalue() if file else None
 
 
@@ -114,7 +110,7 @@ def download_folder(drive_service, folder_id, destination_folder):
             if item['mimeType'] == 'application/vnd.google-apps.folder':
                 download_folder(drive_service, item['id'], os.path.join(destination_folder, item['name']))
             else:
-                content = download_file(drive_service, item['id']) #, item['name'])
+                content = download_file(drive_service, item['id'])
                 with open(os.path.join(destination_folder, item['name']), 'wb') as f:
                     f.write(content)
     except HttpError as error:

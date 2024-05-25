@@ -110,3 +110,18 @@ def list_files(drive_service):
             print(f'{item["name"]} ({item["id"]})')
     except HttpError as error:
         print(f'An error occurred: {error}')
+
+
+def find_file(drive_service, file_name):
+    try:
+        results = drive_service.files().list(q=f"name='{file_name}'", fields="files(id, name, parents)").execute()
+        items = results.get('files', [])
+        if items:
+            file_id = items[0]['id']
+            return file_id
+        else:
+            return None
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+        return None
+

@@ -6,4 +6,6 @@ if __name__ == "__main__":
     drive_service = gd.build("drive", "v3", credentials=creds)
     gd.list_files(drive_service)
 
-    gd.download_folder_by_name(drive_service, "Untitled folder", "downloaded_folder")
+    #gd.download_folder_by_name(drive_service, "Untitled folder", "downloaded_folder")
+
+    print(gd.find_file(drive_service, "Copy of 3"))

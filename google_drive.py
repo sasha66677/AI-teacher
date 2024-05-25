@@ -1,5 +1,7 @@
 import os.path
 import io
+import oauth2client.client
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -23,11 +25,18 @@ def authenticate():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, 'w') as token:
-            token.write(creds.to_json())
+            flow = oauth2client.client.flow_from_clientsecrets(CLIENT_SECRETS, SCOPES)
+            flow.redirect_uri = oauth2client.client.OOB_CALLBACK_URN
+            authorize_url = flow.step1_get_authorize_url()
+            print("Go to the following link in your browser: " + authorize_url)
+            code = input("Enter verification code: ").strip()
+            creds = flow.step2_exchange(code)
+
+            # Save the credentials for the next run
+            with open(TOKEN_FILE, 'w') as token:
+                token.write(creds.to_json())
     return creds
+
 
 
 def upload_file(drive_service, file_name, mime_type, title, description):
